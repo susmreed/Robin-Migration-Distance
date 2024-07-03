@@ -1,0 +1,112 @@
+#Code by T.M. Smiley, tara.smiley@stonybrook.edu, modified by Susan Reed (susan22.reed@gmail.com, susmreed@iu.edu)
+#The following script was used to create a precipitation-weighted isoscape object, which is a requirement for this project's assignR script (located within the 
+#same Github repository--"Robin-Migration-Distance"
+
+library (raster)
+
+#________CREATE SEASONAL ISOSCAPE  (i.e., precipitation-weighted isoscape)__________________________________________________________________________________________________________
+
+# ___________________ Load in range data ___________________
+This particular robin range was created in ArcGIS Pro by intersecting eBird nonbreeding distribution with satellite transmitter tag data.
+#Tag data provided by collaborators Dr. Pete Marra (peter.marra@georgetown.edu) and PhD Candidate Emily Williams (ejw75@georgetown.edu) from Georgetown University. 
+#The resulting polygon was exported as a shapefile and used in the following step.
+
+setwd()
+range <- readRDS('robin_range_shapefile.rds')
+
+# ___________________ Load isoscape raster files ___________________
+# Water isoscape files downloaded from "https://wateriso.utah.edu/waterisotopes/pages/data_access/ArcGrids.html"
+# Use months relevant to claw sample dates. Here, 3 months prior to sample date (Hahn et al., 2014; "Avian claw morphometry and growth...").
+# IN population was sampled in April: Jan (1), Feb(1), March (3)
+# AK population was sampled in May: Feb (2), March (3), April (4)
+
+#..... January .....
+setwd()
+#brick the mean and confidence interval info into the object
+Jan <- brick(raster('d2h_01.tif'), raster('d2h_se_01.tif'))
+names(Jan) <- c("mean", "sd")
+Jan<- as(crop(rast(Jan), vect(range)), 'Raster')
+
+#..... February .....
+setwd()
+Feb <- brick(raster('d2h_02.tif'), raster('d2h_se_02.tif'))
+names(Feb) <- c("mean", "sd")
+Feb<- as(crop(rast(Feb), vect(range)), 'Raster')
+
+#..... March .....
+setwd()
+March <- brick(raster('d2h_03.tif'), raster('d2h_se_03.tif'))
+names(March) <- c("mean", "sd")
+March <- as(crop(rast(March), vect(range)), 'Raster')
+
+#..... April .....
+setwd()
+April <- brick(raster('d2h_04.tif'), raster('d2h_se_04.tif'))
+names(April) <- c("mean", "sd")
+April <- as(crop(rast(April), vect(range)), 'Raster')
+
+# ___________________ Load precipitation raster files ___________________
+# Historical precipitation norm files were downloaded from CHELSA climate data "https://chelsa-climate.org/downloads/"
+#setwd() to CHELSA climate data read in monthly precip files
+
+Jan_prec <- raster('CHELSA_pr_01_1981-2010_V.2.1.tif')
+Feb_prec <- raster('CHELSA_pr_02_1981-2010_V.2.1.tif')
+March_prec <- raster('CHELSA_pr_03_1981-2010_V.2.1.tif')
+April_prec <- raster('CHELSA_pr_04_1981-2010_V.2.1.tif')
+
+#crop precip rasters to the robin range extent.
+Jan_prec<- as(crop(rast(Jan_prec), vect(range)), 'Raster')
+Feb_prec<- as(crop(rast(Feb_prec), vect(range)), 'Raster')
+March_prec  <- as(crop(rast(March_prec), vect(range)), 'Raster')
+April_prec <- as(crop(rast(April_prec), vect(range)), 'Raster')
+
+#resample precipitation rasters. Resample transfers values between non matching Raster* objects (in terms of origin and resolution). 
+#Use projectRaster if the target has a different coordinate reference system (projection).
+
+Jan_prec <- resample(Jan_prec, Jan)
+Feb_prec <- resample(Feb_prec, Feb)
+March_prec <- resample(March_prec, March)
+April_prec  <- resample(April_prec, April)
+
+
+__________Weight isoscape by precipitation__________________________
+#The objects created below are requirements of the associated assignR script.
+
+#..........INDIANA..........
+IN_total_prec <- Jan_prec + Feb_prec + March_prec
+IN_w_dH <- (Jan[[1]] * Jan_prec + Feb[[1]] * Feb_prec + March[[1]] * 
+              March_prec) / IN_total_prec
+
+IN_w_sd <- (Jan[[2]] * Jan_prec + Feb[[2]] * Feb_prec + March[[2]] * 
+              March_prec) / IN_total_prec
+
+#..........ALASKA..........
+AK_total_prec <- Feb_prec + March_prec + April_prec
+AK_w_dH <- (Feb[[1]] * Feb_prec + March[[1]] * March_prec + April[[1]] * 
+              April_prec) / AK_total_prec
+
+AK_w_sd <- (Feb[[2]] * Feb_prec + March[[2]] * March_prec + April[[2]] * 
+              April_prec) / AK_total_prec
+
+
+# save the precipitation-weighted isoscape to use in the assignR script
+#setwd
+writeRaster(IN_w_dH, "IN_w_dH.tif")
+writeRaster(IN_w_sd, "IN_w_sd.tif")
+
+writeRaster(AK_w_dH, "AK_w_dH.tif")
+writeRaster(AK_w_sd, "AK_w_sd.tif")
+
+
+#reproject if necessary
+
+IN_isoscape <- brick(IN_w_dH, IN_w_sd)
+proj4string(IN_isoscape) <- CRS('+proj=longlat +datum=WGS84 +no_defs 
+                                  +ellps=WGS84 +towgs84=0,0,0')
+
+AK_isoscape <- brick(AK_w_dH, AK_w_sd)
+proj4string(AK_isoscape) <- CRS('+proj=longlat +datum=WGS84 +no_defs 
+                                  +ellps=WGS84 +towgs84=0,0,0')
+
+writeRaster(IN_isoscape, "IN_isoscape_projected.tif")
+writeRaster(AK_isoscape, "AK_isoscape_projected.tif")
