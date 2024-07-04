@@ -12,4 +12,4 @@ The assignR requirements include:
 <b>(4)</b> unknown-origin stable isotope values in .csv format.
 
 
-If you do not have a precipitation-weighted isoscape, follow the script labeled "#1. Precip-weighted isoscape" to create the appropriate objects to run the assignR script.
+If you do not have a precipitation-weighted isoscape, follow the script labeled <em>"#1. Precip-weighted isoscape"</em> to create the appropriate objects to run the assignR script.
