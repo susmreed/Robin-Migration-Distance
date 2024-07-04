@@ -1,6 +1,6 @@
 #Code by T.M. Smiley, tara.smiley@stonybrook.edu, modified by Susan Reed (susan22.reed@gmail.com, susmreed@iu.edu)
 #The following script was used to create a precipitation-weighted isoscape object, which is a requirement for this project's assignR script (located within the 
-#same GitHub repository--"Robin-Migration-Distance"
+#same GitHub repository--"Robin-Migration-Distance").
 
 library (raster)
 
@@ -9,7 +9,7 @@ library (raster)
 #________________________________________________________________________________________________________________________________________________________________________
 
 # ___________________ Load in range data ___________________
-This particular robin range was a shapefile that includes all of North America.
+This robin range is a shapefile that includes all of North America.
 
 setwd()
 range <- readRDS('robin_range_shapefile.rds')
@@ -60,8 +60,8 @@ Feb_prec<- as(crop(rast(Feb_prec), vect(range)), 'Raster')
 March_prec  <- as(crop(rast(March_prec), vect(range)), 'Raster')
 April_prec <- as(crop(rast(April_prec), vect(range)), 'Raster')
 
-#resample precipitation rasters. Resample transfers values between non matching Raster* objects (in terms of origin and resolution). 
-#Use projectRaster if the target has a different coordinate reference system (projection).
+#resample precipitation rasters. "Resample" transfers values between non-matchingraster objects (in terms of origin and resolution). 
+#Use "projectRaster" if the target has a different coordinate reference system (projection).
 
 Jan_prec <- resample(Jan_prec, Jan)
 Feb_prec <- resample(Feb_prec, Feb)
@@ -90,7 +90,7 @@ AK_w_sd <- (Feb[[2]] * Feb_prec + March[[2]] * March_prec + April[[2]] *
 
 
 # save the precipitation-weighted isoscape to use in the assignR script
-#setwd
+setwd()
 writeRaster(IN_w_dH, "IN_w_dH.tif")
 writeRaster(IN_w_sd, "IN_w_sd.tif")
 
