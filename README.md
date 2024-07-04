@@ -6,10 +6,10 @@ This script uses the "assignR" package in R Studio version 4.2.2 to designate th
 This script is modified code from collaborator Dr. Tara M. Smiley (tara.smiley@stonybrook.edu).
 
 The assignR requirements include:
-<b>(1)</b> the species range spatial extent or shapefile, 
-<b>(2)</b> a precipitation-weighted isoscape that is temporally and spatially relevant to the tissue being modeled (i.e., here, non-breeding period claw tissue),
-<b>(3)</b> known-origin stable isotope values (likely referenced directly from the package), and
-<b>(4)</b> unknown-origin stable isotope values in .csv format.
+<br> <b>(1)</b> the species range spatial extent or shapefile,</br>
+<br> <b>(2)</b> a precipitation-weighted isoscape that is temporally and spatially relevant to the tissue being modeled (i.e., here, non-breeding period claw tissue),</br>
+<br> <b>(3)</b> known-origin stable isotope values (likely referenced directly from the package), and </br>
+<br> <b>(4)</b> unknown-origin stable isotope values in .csv format.</br>
 
 
 If you do not have a precipitation-weighted isoscape, follow the script labeled <em>"#1. Precip-weighted isoscape"</em> to create the appropriate objects to run the assignR script.
