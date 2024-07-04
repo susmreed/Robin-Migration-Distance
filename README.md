@@ -1,7 +1,7 @@
 # Robin-Migration-Distance
 This script is referenced in graduate student Susan Reed's M.S. thesis in Biology at Indiana University, summer 2024: "_________"
 
-This script uses the assignR package in R Studio to designate the non-breeding location and migration distance of individuals from two populations of the American robin--one that breeds in Anchorage, AK, and another that breeds in Bloomington, IN.
+This script uses the "assignR" package in R Studio to designate the non-breeding location and migration distance of individuals from two populations of the American robin--one that breeds in Anchorage, AK, and another that breeds in Bloomington, IN.
 
 This script is modified code from collaborator Dr. Tara M. Smiley (tara.smiley@stonybrook.edu).
 
