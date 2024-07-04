@@ -12,4 +12,4 @@ The assignR requirements include:
 (4) unknown-origin stable isotope values in .csv format.
 
 
-If you do not have a precip-weighted isoscape, use file labeled "#1. Precip-weighted isoscape" to create the appropriate objects to run the assignR script.
+If you do not have a precip-weighted isoscape, follow the script labeled "#1. Precip-weighted isoscape" to create the appropriate objects to run the assignR script.
