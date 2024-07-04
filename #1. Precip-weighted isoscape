@@ -98,15 +98,3 @@ writeRaster(AK_w_dH, "AK_w_dH.tif")
 writeRaster(AK_w_sd, "AK_w_sd.tif")
 
 
-#reproject if necessary
-
-IN_isoscape <- brick(IN_w_dH, IN_w_sd)
-proj4string(IN_isoscape) <- CRS('+proj=longlat +datum=WGS84 +no_defs 
-                                  +ellps=WGS84 +towgs84=0,0,0')
-
-AK_isoscape <- brick(AK_w_dH, AK_w_sd)
-proj4string(AK_isoscape) <- CRS('+proj=longlat +datum=WGS84 +no_defs 
-                                  +ellps=WGS84 +towgs84=0,0,0')
-
-writeRaster(IN_isoscape, "IN_isoscape_projected.tif")
-writeRaster(AK_isoscape, "AK_isoscape_projected.tif")
