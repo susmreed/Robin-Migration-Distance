@@ -7,9 +7,9 @@ This script is modified code from collaborator Dr. Tara M. Smiley (tara.smiley@s
 
 The assignR requirements include:
 (1) the species range spatial extent or shapefile, 
-(2) a precipitation-weighted isoscape that is temporally and spatially relevant to the tissue being modeled (here, nonbreeding period claw tissue)
-(3) known-origin stable isotope values in .csv format
-(4) unknown-origin stable isotope values in .csv format
+(2) a precipitation-weighted isoscape that is temporally and spatially relevant to the tissue being modeled (here, nonbreeding period claw tissue),
+(3) known-origin stable isotope values in .csv format, and
+(4) unknown-origin stable isotope values in .csv format.
 
 
 If you do not have a precip-weighted isoscape, use file labeled "#1. Precip-weighted isoscape" to create the appropriate objects to run the assignR script.
