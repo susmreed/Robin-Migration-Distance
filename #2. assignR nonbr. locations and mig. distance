@@ -1,7 +1,7 @@
 #Code by T.M. Smiley, tara.smiley@stonybrook.edu, modified by Susan Reed (susan22.reed@gmail.com, susmreed@iu.edu)
 
-#uncomment this to install the old version of assignR (only needs to be done once or if switching back and forth
-remotes::install_version("assignR", "1.2.1")
+#uncomment following line to install the old version of assignR (only needs to be done once or if switching back and forth
+#remotes::install_version("assignR", "1.2.1")
 
 library(assignR)
 library(devtools)
@@ -22,19 +22,16 @@ require(viridis)
 #________________________________________________________________________________________________________________________________________________________________________
 
 # ___________________ Load in range data __________________________________
-#This particular robin range was created in ArcGIS Pro by intersecting the eBird nonbreeding robin distribution with satellite transmitter tag data.
+#This robin range was created in ArcGIS Pro by intersecting an eBird nonbreeding robin distribution with satellite transmitter tag data.
 #Tag data provided by collaborators Dr. Pete Marra (peter.marra@georgetown.edu) and PhD Candidate Emily Williams (ejw75@georgetown.edu) from Georgetown University. 
 #The resulting polygon was exported as a shapefile and used in the following step.
 
 setwd()
-range <- readRDS('robin_range_shapefile.rds')
-setwd('~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/range_shapefile/IN_nonbreeding_range')
 IN_range <- readRDS('IN_nonbr.RDS')
 crs(IN_range)
 plot(naMap)
 plot(IN_range, add = T, col='red')
 
-setwd('~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/range_shapefile/AK_nonbreeding_range')
 AK_range <- readRDS('AK_nonbr.RDS')
 crs(AK_range)
 plot(naMap)
@@ -82,7 +79,7 @@ plot(naMap)
 plot(guild.sp, col = "red", add = T)
 
 #...............................................................................
-# Build the calibration model, recalibrate isoscape (Growing season precip -> feather)
+# Build the feather calibration model, and recalibrate isoscape (Growing season precip -> feather)
 r = calRaster(known = guild.sp, isoscape = isoscape_hi, mask = BB, outDir = " ")
 
 # The resulting file will show you the recalibrated feather maps and your rescaled regression model; 
@@ -97,10 +94,6 @@ r = calRaster(known = guild.sp, isoscape = isoscape_hi, mask = BB, outDir = " ")
 #with feathers, you can skip this recalibration.
 
 #load the claw-relevant precipitation-weighted isoscapes that were made in previous GitHub repository script: "#1. Precip-weighted isoscape"
-
-#IN_w_dH <- raster("IN_w_dH.tif")
-#IN_w_sd <- raster("IN_w_sd.tif")
-#IN_isoscape <- raster("IN_isoscape_projected.tif")
 
 setwd()
 IN_w_dH <- raster("IN_w_dH.tif")
@@ -162,12 +155,13 @@ isoscape_sl_AK <- mask(isoscape_sl_AK, BB)
 plot(isoscape_sl_AK)
 
 # IN: rerun this to get the rescaled claw isoscape for the pdRaster function below
+
 isoscape.rescale_IN = isoscape_sl_IN[[1]] * slope + intercept
 sd <- (isoscape_sl_IN[[2]]^2 + (summary(lmResult)$sigma)^2 + iso.cov)^0.5
 isoscape.rescale_IN <- raster::stack(isoscape.rescale_IN, sd)
 names(isoscape.rescale_IN) <- c("mean", "sd")
 
-# AK: rerun this bit to get your rescaled claw isoscape for the pdRaster function below
+# AK: rerun this to get a rescaled claw isoscape for the pdRaster function below
 isoscape.rescale_AK = isoscape_sl_AK[[1]] * slope + intercept
 sd <- (isoscape_sl_AK[[2]]^2 + (summary(lmResult)$sigma)^2 + iso.cov)^0.5
 isoscape.rescale_AK <- raster::stack(isoscape.rescale_AK, sd)
@@ -175,11 +169,13 @@ names(isoscape.rescale_AK) <- c("mean", "sd")
 
 
 #...............................................................................
-#load your unknown-origin claw data in csv format with three columns: 
-#column 1. "Identifier" (this is your sample ID), 2. "d2H_VSMOW" (this is your isotope value), and 3.	State (this is your group comparison if appropriate)
+#load the unknown-origin claw data "X" in .csv format with three columns: 
+#1. "Identifier" (this is your sample ID), 
+#2. "d2H_VSMOW" (this is your isotope value), and 
+#3. "State" (this is your group comparison if appropriate, rename as necessary)
 
 setwd()
-dat_claw <- read.csv()
+dat_claw <- read.csv('X')
 
 #subset data by group (e.g., IN and AK)
 IN_claw <- dat_claw[which(dat_claw$State == "IN"),]
@@ -209,9 +205,9 @@ asn_AK_masked=mask(asn_AK, mask=AK_range)
 #remember to rename these files in the out directory with the group ID
 #this function also takes a long time to run
 
-set_IN= qtlRaster(asn_IN_masked, threshold = 0.1, outDir='~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/posterior probability plots/NonBr_Ranges')
+set_IN= qtlRaster(asn_IN_masked, threshold = 0.1, outDir='')
 
-set_AK= qtlRaster(asn_AK_masked, threshold = 0.1, outDir='~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/posterior probability plots/NonBr_Ranges')
+set_AK= qtlRaster(asn_AK_masked, threshold = 0.1, outDir='')
 
 
 #_____________________________________________________________________________________________________________________________________________
