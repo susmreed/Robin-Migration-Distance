@@ -1,0 +1,358 @@
+#Code by T.M. Smiley, tara.smiley@stonybrook.edu, modified by Susan Reed (susan22.reed@gmail.com, susmreed@iu.edu)
+
+#uncomment this to install the old version of assignR (only needs to be done once or if switching back and forth
+remotes::install_version("assignR", "1.2.1")
+
+library(assignR)
+library(devtools)
+library(ggplot2)
+library(plyr)
+library(raster)
+library(rgdal)
+library(maptools)
+library(sp)
+library(rgeos)
+library(sf)
+
+require(viridis)
+
+
+#________________________________________________________________________________________________________________________________________________________________________
+#..........Use assignR to identify robin nonbreeding locations and migration distances...................................................................................
+#________________________________________________________________________________________________________________________________________________________________________
+
+# ___________________ Load in range data __________________________________
+#This particular robin range was created in ArcGIS Pro by intersecting the eBird nonbreeding robin distribution with satellite transmitter tag data.
+#Tag data provided by collaborators Dr. Pete Marra (peter.marra@georgetown.edu) and PhD Candidate Emily Williams (ejw75@georgetown.edu) from Georgetown University. 
+#The resulting polygon was exported as a shapefile and used in the following step.
+
+setwd()
+range <- readRDS('robin_range_shapefile.rds')
+setwd('~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/range_shapefile/IN_nonbreeding_range')
+IN_range <- readRDS('IN_nonbr.RDS')
+crs(IN_range)
+plot(naMap)
+plot(IN_range, add = T, col='red')
+
+setwd('~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/range_shapefile/AK_nonbreeding_range')
+AK_range <- readRDS('AK_nonbr.RDS')
+crs(AK_range)
+plot(naMap)
+plot(AK_range, add = T, col='blue')
+
+
+#_____________________________________________________________________________________________________________________________________________
+#_________________Feather calibration model___________________________________________________________________________________________________
+#_____________________________________________________________________________________________________________________________________________
+# Build a feather calibration model based on known values
+
+# load hi resolution growing season H map from: 
+#http://wateriso.utah.edu/waterisotopes/pages/data_access/ArcGrids.html
+
+setwd()
+isoscape_h <- raster("d2h_GS.tif")
+isoscape_sd <- raster('d2h_se_GS.tif') 
+isoscape_hi <- brick(isoscape_h, isoscape_sd)
+proj4string(isoscape_hi) <- CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 
+                                +towgs84=0,0,0')
+
+# crop isoscape to AMRO range extent
+bb <- rbind(c(-180, 90), c(-50, 0))
+BB <- gEnvelope(SpatialPoints(bb, proj4string=CRS('+proj=longlat +datum=WGS84')))
+
+isoscape_hi <- crop(isoscape_hi, BB) 
+plot(isoscape_hi)
+
+#...............................................................................
+#Load in known-origin AMRO isotope values (built into the assignR function "subOrigData")
+#if you are interested in standardizing values in absolute terms, 
+#use the appropriate reference scale in the argument "ref_scale"
+
+dss = subOrigData(taxon = c("Turdus migratorius", "Hylocichla mustelina", 
+                            "Catharus fuscescens", "Catharus guttatus", 
+                            "Catharus ustulatus", ref_scale = NULL))
+
+
+dss <- as.data.frame(dss)
+guild.sp <- SpatialPointsDataFrame(as.data.frame(dss[,"d2H"]), 
+                                   coords = dss[,c("Longitude", "Latitude")], 
+                                   proj4string = CRS('+proj=longlat +datum=WGS84 
+                                                     +no_defs +ellps=WGS84 +towgs84=0,0,0'))
+plot(naMap)
+plot(guild.sp, col = "red", add = T)
+
+#...............................................................................
+# Build the calibration model, recalibrate isoscape (Growing season precip -> feather)
+r = calRaster(known = guild.sp, isoscape = isoscape_hi, mask = BB, outDir = " ")
+
+# The resulting file will show you the recalibrated feather maps and your rescaled regression model; 
+#check the regression model to make sure you have an acceptable r2 value and slope/intercept 
+#that seem reasonable given past literature (see Hobson et al., 2012; "Linking Hydrogen (δ2H) Isotopes in Feathers")
+
+#_____________________________________________________________________________________________________________________________________________
+#_________________Claw calibration model______________________________________________________________________________________________________
+#_____________________________________________________________________________________________________________________________________________
+# Now that you have built the feather model, you need to save the relevant parameters to 
+#generate a calibration on a claw set using the precip-weighted isoscapes. If you are working
+#with feathers, you can skip this recalibration.
+
+#load the claw-relevant precipitation-weighted isoscapes that were made in previous GitHub repository script: "#1. Precip-weighted isoscape"
+
+#IN_w_dH <- raster("IN_w_dH.tif")
+#IN_w_sd <- raster("IN_w_sd.tif")
+#IN_isoscape <- raster("IN_isoscape_projected.tif")
+
+setwd()
+IN_w_dH <- raster("IN_w_dH.tif")
+IN_w_sd <- raster("IN_w_sd.tif")
+IN_isoscape <- brick(IN_w_dH, IN_w_sd)
+proj4string(IN_isoscape) <- CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
+
+
+AK_w_dH <- raster("AK_w_dH.tif")
+AK_w_sd <- raster("AK_w_sd.tif")
+AK_isoscape <- brick(AK_w_dH, AK_w_sd)
+proj4string(AK_isoscape) <- CRS('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
+
+#create lineaer model recalibration
+lmResult <- r$lm.model
+intercept <- as.numeric(stats::coef(lmResult)[1])
+slope <- as.numeric(stats::coef(lmResult)[2])
+
+isoscape <- isoscape_hi
+known <- guild.sp
+nSample <- nrow(known)
+isoscape.iso <- raster::extract(isoscape, known, method = "bilinear") 
+tissue.iso <- known@data[, 1]
+
+
+isoscape.sim = matrix(0, nrow = nSample, ncol = 100)
+
+# each sample gets a 100 random sample from within extracted standard dev of 
+#the extracted values (from model-building isoscape)
+
+for (i in 1:nrow(isoscape.iso)) {
+	isoscape.sim[i, ] = stats::rnorm(100, isoscape.iso[i,1], isoscape.iso[i, 2])}
+
+isoscape.dev = tissue.dev = double()
+for (i in 1:100) {
+	lm.sim = stats::lm(tissue.iso ~ isoscape.sim[, i])          
+	isoscape.dev = c(isoscape.dev, isoscape.sim[, i] - isoscape.iso[,1])
+	
+	# simulation i - real extracted values
+    tissue.dev = c(tissue.dev, lm.sim$residuals) # model residuals
+}
+
+iso.cov = stats::cov(isoscape.dev, tissue.dev)
+
+#...............................................................................
+#Apply claw model calibration to seasonal raster (i.e., precipitation-weighted isoscape)
+
+r_IN = calRaster(known = guild.sp, isoscape = IN_isoscape, mask = BB)
+
+r_AK = calRaster(known = guild.sp, isoscape = AK_isoscape, mask = BB)
+
+isoscape_sl_IN <- IN_isoscape
+isoscape_sl_AK <- AK_isoscape
+
+isoscape_sl_IN <- mask(isoscape_sl_IN, BB)
+plot(isoscape_sl_IN)
+
+isoscape_sl_AK <- mask(isoscape_sl_AK, BB)
+plot(isoscape_sl_AK)
+
+# IN: rerun this to get the rescaled claw isoscape for the pdRaster function below
+isoscape.rescale_IN = isoscape_sl_IN[[1]] * slope + intercept
+sd <- (isoscape_sl_IN[[2]]^2 + (summary(lmResult)$sigma)^2 + iso.cov)^0.5
+isoscape.rescale_IN <- raster::stack(isoscape.rescale_IN, sd)
+names(isoscape.rescale_IN) <- c("mean", "sd")
+
+# AK: rerun this bit to get your rescaled claw isoscape for the pdRaster function below
+isoscape.rescale_AK = isoscape_sl_AK[[1]] * slope + intercept
+sd <- (isoscape_sl_AK[[2]]^2 + (summary(lmResult)$sigma)^2 + iso.cov)^0.5
+isoscape.rescale_AK <- raster::stack(isoscape.rescale_AK, sd)
+names(isoscape.rescale_AK) <- c("mean", "sd")
+
+
+#...............................................................................
+#load your unknown-origin claw data in csv format with three columns: 
+#column 1. "Identifier" (this is your sample ID), 2. "d2H_VSMOW" (this is your isotope value), and 3.	State (this is your group comparison if appropriate)
+
+setwd()
+dat_claw <- read.csv()
+
+#subset data by group (e.g., IN and AK)
+IN_claw <- dat_claw[which(dat_claw$State == "IN"),]
+dim(IN_claw)
+unk_IN <- IN_claw[,c("Identifier", "d2H_VSMOW")]
+
+AK_claw <- dat_claw[which(dat_claw$State == 'AK'),]
+dim(AK_claw)
+unk_AK <- AK_claw[,c("Identifier", "d2H_VSMOW")]
+
+#...............................................................................
+#Create posterior probability density maps used to the assign the unknown origin samples
+#the pdRaster function creates a pdf file in your output directory of the posterior probability surface
+#remember to rename these files in the out directory with the group ID
+#this function takes a long time to run
+
+asn_IN = pdRaster(isoscape.rescale_IN, unknown = unk_IN, genplot=T)
+asn_IN_masked=mask(asn_IN, mask=IN_range)
+
+
+asn_AK= pdRaster(isoscape.rescale_AK, unknown = unk_AK, genplot=T)
+asn_AK_masked=mask(asn_AK, mask=AK_range)
+
+#...............................................................................
+#extract cells within the top 10% highest posterior probability based on Bayesian assignment
+#the qtlRaster function creates a pdf file in your output directory of the top 10% probability surface
+#remember to rename these files in the out directory with the group ID
+#this function also takes a long time to run
+
+set_IN= qtlRaster(asn_IN_masked, threshold = 0.1, outDir='~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/posterior probability plots/NonBr_Ranges')
+
+set_AK= qtlRaster(asn_AK_masked, threshold = 0.1, outDir='~/Library/CloudStorage/OneDrive-IndianaUniversity/AMRO/isotopes/AssignR/posterior probability plots/NonBr_Ranges')
+
+
+#_____________________________________________________________________________________________________________________________________________
+#_________________Mapping / Figures___________________________________________________________________________________________________________
+#_____________________________________________________________________________________________________________________________________________
+The following functions create pdf files in the out directory. 
+
+
+#...........IN posterior probability maps..........................................
+setwd()
+pdf("IN_ProbMaps_NonBrRange.pdf", width = 40, height = 50, useDingbats = F, encoding = "MacRoman")
+
+par(mfrow = c(5,4))
+par(oma = c(2,2,2,6), mar = c(2,2,2,6))
+
+for(i in 1:208){
+  plot(asn_IN_masked[[i]], main = names(asn_IN_masked)[i])
+}
+dev.off()
+
+
+#...........AK posterior probability maps..........................................
+
+setwd()
+pdf("AK_ProbMaps_NonBrRange.pdf", width = 40, height = 50, useDingbats = F, encoding = "MacRoman")
+
+par(mfrow = c(5,4))
+par(oma = c(2,2,2,6), mar = c(2,2,2,6))
+
+for(i in 1:120){
+  plot(asn_AK_masked[[i]], main = names(asn_AK_masked)[i])
+}
+dev.off()
+
+#...........IN 10% Threshold Maps..........................................
+setwd()
+pdf("IN_10threshold_NonBrRange.pdf", width = 40, height = 50, useDingbats = F, encoding = "MacRoman")
+
+par(mfrow = c(5,4))
+par(oma = c(2,2,2,6), mar = c(2,2,2,6))
+
+for(i in 1:208){
+  plot(set_IN[[i]], main = names(set_IN)[i])
+}
+dev.off()
+
+#...........AK 10% Threshold Maps..........................................
+setwd()
+pdf("AK_10threshold_NonBrRange.pdf", width = 40, height = 50, useDingbats = F, encoding = "MacRoman")
+
+par(mfrow = c(5,4))
+par(oma = c(2,2,2,6), mar = c(2,2,2,6))
+
+for(i in 1:120){
+  plot(set_AK[[i]], main = names(set_AK)[i], legend = F)
+}
+dev.off()
+
+
+
+#_____________________________________________________________________________________________________________________________________________
+#_________________ Migration Distance Calculation ____________________________________________________________________________________________
+#_____________________________________________________________________________________________________________________________________________
+# Code for generating distance (12/7/2023), tara.smiley@stonybrook.edu
+
+#...........IN Distance............................................
+
+IN.names.dist <- c("Band_number", "d2H_f", "Centroid_x", 
+                   "Centroid_y", "inPoly", "Centroid_in_x", "Centroid_in_y", 
+                   "Dist_centroid", "Dist_centroid_in")
+
+
+IN.dist <- as.data.frame(matrix(ncol = length(IN.names.dist) , nrow = nlayers(set_IN)))
+names(IN.dist) <- IN.names.dist
+IN.dist[,1:2] <- unk_IN[,1:2]
+IN.dist$inPoly <- rep("Y", length = nrow(IN.dist))
+coords <- c(-86.519272, 39.166708)
+head(IN.dist)
+
+for(i in 1:nlayers(set_IN)){
+  ind <- set_IN[[i]]
+  ind[ind == 0]<- NA
+  ind_poly <- rasterToPolygons(ind)
+  ind_centroid <- gCentroid(ind_poly)
+  dist_centroid <- spDistsN1(ind_centroid, coords, longlat = T)
+  IN.dist[i,3:4] <- ind_centroid@coords
+  IN.dist$Dist_centroid[i] <- dist_centroid
+  
+  if(is.na(extract(ind, ind_centroid))){
+    IN.dist$inPoly[i] <- "N"
+    dist_IN <- distanceFromPoints(ind, ind_centroid)
+    dist_IN <- mask(dist_IN, ind)
+    xy <- xyFromCell(dist_IN, which.min(values(dist_IN)))
+    dist_centroid_in <- spDistsN1(xy, coords, longlat = T)
+    IN.dist[i,6:7] <- xy
+    IN.dist$Dist_centroid_in[i] <- dist_centroid_in
+  }
+  print(i)
+}
+
+
+#save distance file as csv
+setwd()
+write.csv(IN.dist, "IN_NonBr_Range_Dist_10threshold.csv", row.names = F)
+
+
+#...........AK Distance............................................
+AK.names.dist <- c("Band_number", "d2H_f", "Centroid_x", 
+                   "Centroid_y", "inPoly", "Centroid_in_x", "Centroid_in_y", 
+                   "Dist_centroid", "Dist_centroid_in")
+
+AK.dist <- as.data.frame(matrix(ncol = length(AK.names.dist) , nrow = nlayers(set_AK)))
+names(AK.dist) <- AK.names.dist
+AK.dist[,1:2] <- unk_AK[,1:2]
+AK.dist$inPoly <- rep("Y", length = nrow(AK.dist))
+coords <- c(-149.738291, 61.289291)
+head(AK.dist)
+
+for(i in 1:nlayers(set_AK)){
+  ak <- set_AK[[i]]
+  ak[ak == 0]<- NA
+  ak_poly <- rasterToPolygons(ak)
+  ak_centroid <- gCentroid(ak_poly)
+  dist_centroid <- spDistsN1(ak_centroid, coords, longlat = T)
+  AK.dist[i,3:4] <- ak_centroid@coords
+  AK.dist$Dist_centroid[i] <- dist_centroid
+  
+  if(is.na(extract(ak, ak_centroid))){
+    AK.dist$inPoly[i] <- "N"
+    dist_AK <- distanceFromPoints(ak, ak_centroid)
+    dist_AK <- mask(dist_AK, ak)
+    xy <- xyFromCell(dist_AK, which.min(values(dist_AK)))
+    dist_centroid_in <- spDistsN1(xy, coords, longlat = T)
+    AK.dist[i,6:7] <- xy
+    AK.dist$Dist_centroid_in[i] <- dist_centroid_in
+  }
+  print(i)
+}
+
+#save distance file as csv
+setwd()
+write.csv(AK.dist, "AK_NonBr_Range_Dist_10threshold.csv", row.names = F) 
+
+
