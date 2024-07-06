@@ -13,3 +13,6 @@ This script is modified code from collaborator Dr. Tara M. Smiley (tara.smiley@s
 
 
 If you do not have a precipitation-weighted isoscape, follow the script labeled <em>"#1. Precip-weighted isoscape"</em> to create the appropriate objects to run the assignR script.
+
+
+Questions? Contact <b>susan22.reed@gmail.com</b>.
