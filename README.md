@@ -1,4 +1,4 @@
-# Robin-Migration-Distance
+# Robin_2023-Migration-Distance
 This script is referenced in graduate student Susan Reed's M.S. thesis in Biology at Indiana University, summer 2024: "_________"
 
 This script uses the "assignR" package in R Studio version 4.2.2 to designate the non-breeding location and migration distance of individuals from two populations of the American robin songbird, <em>Turdus migratorius</em> — one that breeds in Anchorage, AK, and another that breeds in Bloomington, IN.
