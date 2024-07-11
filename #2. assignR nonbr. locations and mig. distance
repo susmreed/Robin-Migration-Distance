@@ -65,9 +65,9 @@ plot(isoscape_hi)
 #if you are interested in standardizing values in absolute terms, 
 #use the appropriate reference scale in the argument "ref_scale"
 
-dss = subOrigData(taxon = c("Turdus migratorius", "Hylocichla mustelina", 
-                            "Catharus fuscescens", "Catharus guttatus", 
-                            "Catharus ustulatus", ref_scale = NULL))
+dss = subOrigData(marker = 'd2H',taxon = c("Turdus migratorius", "Hylocichla mustelina", 
+                                           "Catharus fuscescens", "Catharus guttatus", 
+                                           "Catharus ustulatus", ref_scale = 'VSMOW_H'))
 
 
 dss <- as.data.frame(dss)
